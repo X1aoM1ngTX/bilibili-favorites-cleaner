@@ -1,13 +1,13 @@
 # B站收藏夹清理工具
 
-一个用于清理B站收藏夹失效视频的Web工具，提供直观的界面操作和精确的统计功能。
+一个用于快速清理B站收藏夹失效视频的Web工具，提供直观的界面操作和精确的统计功能。
 
 ## 功能特点
 
 - 🎯 **精准清理**：自动识别并删除失效视频（已删除、私享、仅会员可见等）
 - 📊 **详细统计**：显示清理前后的收藏夹状态和精确的数量变化
 - 🌐 **Web界面**：提供直观简单的Web界面操作
-- 📱 **嵌入式登录**：支持iframe模式的扫码登录
+- 📱 **嵌入式登录**：支持iframe模式的扫码登录（基于 [WittF/bilibili-qr-login](https://github.com/WittF/bilibili-qr-login) 项目，感谢原作者 [@WittF](https://github.com/WittF) 的贡献！）
 - 🍪 **Cookie管理**：自动获取和展示登录Cookie
 - 📋 **一键复制**：支持Cookie内容一键复制功能
 - 🔄 **实时更新**：实时显示收藏夹列表和清理进度
@@ -17,7 +17,7 @@
 ### 1. 克隆项目
 ```bash
 git clone <repository-url>
-cd CleanUpBilibiliFavorites
+cd BilibiliFavCleaner
 ```
 
 ### 2. 安装依赖
@@ -28,8 +28,6 @@ npm install
 ### 3. 启动Web服务器
 ```bash
 npm start
-# 或
-npm run serve
 ```
 
 ### 4. 打开浏览器访问
@@ -54,6 +52,8 @@ http://localhost:3000
 - 登录成功后自动获取Cookie并展示
 - 支持Cookie内容一键复制
 
+> 本项目的登录功能基于 [WittF/bilibili-qr-login](https://github.com/WittF/bilibili-qr-login) 项目，感谢原作者 [@WittF](https://github.com/WittF) 提供的优秀解决方案。
+
 ### 收藏夹管理
 - 自动获取用户的所有收藏夹列表
 - 显示每个收藏夹的名称和当前视频数量
@@ -68,7 +68,7 @@ http://localhost:3000
 
 - **前端**：HTML5 + CSS3 + JavaScript（原生）
 - **后端**：Node.js + Express
-- **登录方式**：嵌入式iframe登录
+- **登录方式**：嵌入式iframe登录（基于 [bilibili-qr-login](https://github.com/WittF/bilibili-qr-login)）
 - **API接口**：B站收藏夹API
 - **数据格式**：JSON
 
@@ -155,6 +155,10 @@ MIT License
 - 支持Web界面和命令行两种使用方式
 - 实现嵌入式登录功能
 - 添加详细的统计和日志功能
+
+## 相关项目
+
+- [bilibili-qr-login](https://github.com/WittF/bilibili-qr-login) - 哔哩哔哩 Cookie 获取工具，本项目登录功能基于此项目实现
 
 ## 免责声明
 

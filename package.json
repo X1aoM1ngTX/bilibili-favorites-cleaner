@@ -4,8 +4,7 @@
   "description": "哔哩哔哩收藏夹失效内容清理工具 - 一键清理所有收藏夹中的失效内容",
   "main": "start.js",
   "scripts": {
-    "start": "node web-server.js",
-    "serve": "node web-server.js"
+    "start": "node web-server.js"
   },
   "keywords": [
     "bilibili",
