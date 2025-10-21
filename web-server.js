@@ -70,148 +70,6 @@ function saveConfig(config) {
   }
 }
 
-/**
- * 生成二维码登录
- */
-async function generateQRCode() {
-  return new Promise((resolve, reject) => {
-    const appkey = '4409e2ce8ffd12b8';
-    const appsec = '59b43e04ad6965f34319062b478f83dd';
-    const ts = Math.floor(Date.now() / 1000);
-    
-    // 生成签名
-    const params = {
-      appkey,
-      local_id: '0',
-      ts
-    };
-    
-    const sortedKeys = Object.keys(params).sort();
-    const paramStr = sortedKeys.map(key => `${key}=${params[key]}`).join('&');
-    const signStr = paramStr + appsec;
-    const sign = require('crypto').createHash('md5').update(signStr).digest('hex');
-    
-    const postData = querystring.stringify({
-      ...params,
-      sign
-    });
-
-    const options = {
-      hostname: 'passport.bilibili.com',
-      port: 443,
-      path: '/x/passport-login/web/qrcode/generate',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Content-Length': Buffer.byteLength(postData),
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Referer': 'https://www.bilibili.com/',
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-        'Accept-Encoding': 'gzip, deflate, br'
-      }
-    };
-
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', (chunk) => {
-        data += chunk;
-      });
-      res.on('end', () => {
-        try {
-          const result = JSON.parse(data);
-          console.log('二维码生成响应:', result); // 调试日志
-          if (result.code === 0) {
-            resolve(result.data);
-          } else {
-            reject(new Error(result.message || '生成二维码失败'));
-          }
-        } catch (error) {
-          console.error('解析响应失败:', data); // 调试日志
-          reject(new Error('解析响应失败'));
-        }
-      });
-    });
-
-    req.on('error', (error) => {
-      console.error('请求失败:', error); // 调试日志
-      reject(error);
-    });
-
-    req.write(postData);
-    req.end();
-  });
-}
-
-/**
- * 轮询二维码状态
- */
-async function pollQRStatus(qrcodeKey) {
-  return new Promise((resolve, reject) => {
-    const appkey = '4409e2ce8ffd12b8';
-    const appsec = '59b43e04ad6965f34319062b478f83dd';
-    const ts = Math.floor(Date.now() / 1000);
-    
-    // 生成签名
-    const params = {
-      appkey,
-      local_id: '0',
-      qrcode_key: qrcodeKey,
-      ts
-    };
-    
-    const sortedKeys = Object.keys(params).sort();
-    const paramStr = sortedKeys.map(key => `${key}=${params[key]}`).join('&');
-    const signStr = paramStr + appsec;
-    const sign = require('crypto').createHash('md5').update(signStr).digest('hex');
-    
-    const postData = querystring.stringify({
-      ...params,
-      sign
-    });
-
-    const options = {
-      hostname: 'passport.bilibili.com',
-      port: 443,
-      path: '/x/passport-login/web/qrcode/poll',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Content-Length': Buffer.byteLength(postData),
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Referer': 'https://www.bilibili.com/',
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-        'Accept-Encoding': 'gzip, deflate, br'
-      }
-    };
-
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', (chunk) => {
-        data += chunk;
-      });
-      res.on('end', () => {
-        try {
-          const result = JSON.parse(data);
-          console.log('二维码状态响应:', result); // 调试日志
-          resolve(result);
-        } catch (error) {
-          console.error('解析响应失败:', data); // 调试日志
-          reject(new Error('解析响应失败'));
-        }
-      });
-    });
-
-    req.on('error', (error) => {
-      console.error('请求失败:', error); // 调试日志
-      reject(error);
-    });
-
-    req.write(postData);
-    req.end();
-  });
-}
 
 /**
  * 获取收藏夹列表
@@ -330,13 +188,6 @@ function parseCookieExpiry(cookieValue) {
   return Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60);
 }
 
-/**
- * 发送SSE事件
- */
-function sendSSE(res, event, data) {
-  res.write(`event: ${event}\n`);
-  res.write(`data: ${JSON.stringify(data)}\n\n`);
-}
 
 /**
  * 处理API请求
@@ -358,24 +209,6 @@ async function handleAPI(req, res, pathname, query) {
 
   try {
     switch (pathname) {
-      case '/api/generate-qr':
-        if (req.method === 'POST') {
-          try {
-            const qrData = await generateQRCode();
-            res.writeHead(200, corsHeaders);
-            res.end(JSON.stringify({
-              success: true,
-              data: qrData
-            }));
-          } catch (error) {
-            res.writeHead(500, corsHeaders);
-            res.end(JSON.stringify({
-              success: false,
-              error: error.message
-            }));
-          }
-        }
-        break;
 
       case '/api/config':
         if (req.method === 'GET') {
@@ -732,8 +565,6 @@ process.on('SIGINT', () => {
 });
 
 module.exports = {
-  generateQRCode,
-  pollQRStatus,
   getFavoriteFolders,
   cleanFavoriteFolder,
   loadConfig,

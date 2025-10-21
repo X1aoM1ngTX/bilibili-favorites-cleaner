@@ -4,10 +4,7 @@
   "description": "哔哩哔哩收藏夹失效内容清理工具 - 一键清理所有收藏夹中的失效内容",
   "main": "start.js",
   "scripts": {
-    "start": "node start.js",
-    "clean": "node bilibili_fav_cleaner_with_config.js",
-    "config": "node cookie_helper.js",
-    "web": "node web-server.js",
+    "start": "node web-server.js",
     "serve": "node web-server.js"
   },
   "keywords": [
@@ -23,15 +20,12 @@
   "engines": {
     "node": ">=12.0.0"
   },
-  "bin": {
-    "bili-clean": "./start.js"
-  },
   "files": [
-    "start.js",
-    "bilibili_fav_cleaner_with_config.js",
-    "cookie_helper.js",
-    "README.md",
-    "config.json"
+    "web-server.js",
+    "index.html",
+    "app.js",
+    "styles.css",
+    "README.md"
   ],
   "repository": {
     "type": "git",
