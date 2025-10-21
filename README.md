@@ -32,7 +32,7 @@ npm start
 
 ### 4. 打开浏览器访问
 ```
-http://localhost:3000
+http://localhost:8080
 ```
 
 ### 5. 使用步骤
