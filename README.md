@@ -16,8 +16,8 @@
 
 ### 1. 克隆项目
 ```bash
-git clone https://github.com/X1aoM1ngTX/BilibiliFavCleaner.git
-cd BilibiliFavCleaner
+git clone https://github.com/X1aoM1ngTX/bilibili-favorites-cleaner.git
+cd bilibili-favorites-cleaner
 ```
 
 ### 2. 安装依赖
