@@ -1,52 +1,28 @@
 const express = require('express');
 const router = express.Router();
-const fs = require('fs');
-const path = require('path');
-
-const CONFIG_FILE = path.join(__dirname, '../data/config.json');
-
-/**
- * 读取配置文件
- */
-function loadConfig() {
-  try {
-    if (fs.existsSync(CONFIG_FILE)) {
-      return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-    }
-  } catch (error) {
-    console.error('读取配置文件失败:', error.message);
-  }
-  return null;
-}
-
-/**
- * 保存配置文件
- */
-function saveConfig(config) {
-  try {
-    // 确保数据目录存在
-    const dataDir = path.dirname(CONFIG_FILE);
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
-    }
-    
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
-    return true;
-  } catch (error) {
-    console.error('保存配置文件失败:', error.message);
-    return false;
-  }
-}
+const { loadConfig, saveConfig } = require('../utils/config');
 
 // GET /api/config - 获取配置
 router.get('/', (req, res) => {
   try {
+    // 设置缓存控制头，防止浏览器缓存这个API响应
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'Last-Modified': new Date().toUTCString()
+    });
+    
+    console.log('[API] 正在读取配置文件...');
     const config = loadConfig();
+    console.log('[API] 读取到的配置:', config);
+    
     res.json({
       success: true,
       data: config
     });
   } catch (error) {
+    console.error('[API] 获取配置失败:', error);
     res.status(500).json({
       success: false,
       error: '获取配置失败'
