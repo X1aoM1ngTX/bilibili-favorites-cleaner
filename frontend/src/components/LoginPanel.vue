@@ -128,11 +128,17 @@ const iframeUrl = computed(() => {
     targetOrigin = apiBaseUrl.replace('/api', '')
   }
   
+  // 确保targetOrigin是完整的URL格式
+  if (!targetOrigin.startsWith('http://') && !targetOrigin.startsWith('https://')) {
+    targetOrigin = `http://${targetOrigin}`
+  }
+  
   const url = `${SERVICE_URL}/?mode=iframe&targetOrigin=${encodeURIComponent(targetOrigin)}`
   console.log('登录URL:', url)
   console.log('API基础URL:', apiBaseUrl)
   console.log('后端URL:', backendUrl)
   console.log('目标Origin:', targetOrigin)
+  console.log('当前页面origin:', window.location.origin)
   return url
 })
 
@@ -234,8 +240,18 @@ async function copyCookie() {
   }
 }
 
-function refreshCookie() {
-  configStore.checkConfig()
+async function refreshCookie() {
+  try {
+    showCopyStatus('正在刷新Cookie...', 'info')
+    await configStore.checkConfig()
+    if (hasCookie.value) {
+      showCopyStatus('✅ Cookie已刷新', 'success')
+    } else {
+      showCopyStatus('暂无Cookie数据', 'info')
+    }
+  } catch (error) {
+    showCopyStatus('❌ 刷新Cookie失败: ' + error.message, 'error')
+  }
 }
 
 function toggleManualForm() {
@@ -294,23 +310,52 @@ onMounted(() => {
   
   // 监听登录消息
   window.addEventListener('message', (event) => {
-    // 验证消息来源
-    if (event.origin !== SERVICE_URL) {
-      console.warn('收到非预期来源的消息:', event.origin)
-      return
+    console.log('=== 收到postMessage事件 ===')
+    console.log('事件对象:', event)
+    console.log('消息来源:', event.origin)
+    console.log('消息数据:', event.data)
+    console.log('数据类型:', typeof event.data)
+    console.log('期望来源1 (SERVICE_URL):', SERVICE_URL)
+    console.log('期望来源2 (当前页面):', window.location.origin)
+    
+    // 临时接受所有消息进行调试
+    if (event.origin !== SERVICE_URL && event.origin !== window.location.origin) {
+      console.warn('收到非预期来源的消息，但为了调试继续处理:', event.origin)
+      // 不要return，继续处理所有消息
     }
     
-    const { type, mode, data } = event.data
+    // 尝试解析不同格式的消息
+    let messageData
+    if (typeof event.data === 'string') {
+      try {
+        messageData = JSON.parse(event.data)
+        console.log('解析JSON字符串消息:', messageData)
+      } catch (e) {
+        console.log('消息是纯字符串，无法解析为JSON:', event.data)
+        messageData = { raw: event.data }
+      }
+    } else {
+      messageData = event.data
+      console.log('消息是对象格式:', messageData)
+    }
+    
+    const { type, mode, data } = messageData
+    console.log('提取的消息字段:', { type, mode, data })
+    
     if (type === 'success') {
       showLoginStatus(`✅ ${mode}模式登录成功！Cookie已获取`, 'success')
       
       // 解析Cookie并保存配置
       const parsedCookies = parseCookieString(data)
+      console.log('解析的Cookie:', parsedCookies)
+      
       const config = {
         up_mid: parsedCookies.DedeUserID,
         csrf_token: parsedCookies.bili_jct,
         cookie: data
       }
+      
+      console.log('保存的配置:', config)
       
       configStore.saveConfig(config).then(() => {
         toast.success('登录成功！配置已保存')

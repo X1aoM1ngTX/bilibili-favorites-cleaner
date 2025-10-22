@@ -31,7 +31,9 @@ export const useConfigStore = defineStore('config', () => {
     error.value = null
     
     try {
-      const response = await api.get('/config')
+      // 添加时间戳参数防止缓存
+      const timestamp = new Date().getTime()
+      const response = await api.get(`/config?_t=${timestamp}`)
       config.value = response.data
     } catch (err) {
       console.error('检查配置失败:', err)

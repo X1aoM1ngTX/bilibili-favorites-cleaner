@@ -5,7 +5,9 @@ const api = axios.create({
   baseURL: process.env.VUE_APP_API_BASE_URL || 'http://localhost:3000/api',
   timeout: 30000,
   headers: {
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-cache',
+    Pragma: 'no-cache'
   }
 })
 
@@ -81,7 +83,13 @@ export { api }
 
 // 便捷的HTTP方法
 export const http = {
-  get: (url, config) => api.get(url, config),
+  get: (url, config) => {
+    // 为GET请求添加时间戳参数，防止缓存
+    const timestamp = new Date().getTime()
+    const separator = url.includes('?') ? '&' : '?'
+    const urlWithTimestamp = `${url}${separator}_t=${timestamp}`
+    return api.get(urlWithTimestamp, config)
+  },
   post: (url, data, config) => api.post(url, data, config),
   put: (url, data, config) => api.put(url, data, config),
   delete: (url, config) => api.delete(url, config),
