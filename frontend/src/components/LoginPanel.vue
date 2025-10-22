@@ -1,9 +1,9 @@
 <template>
   <div class="login-panel">
-    <!-- 嵌入式登录 -->
+    <!-- 登录 -->
     <div class="card">
-      <h2>嵌入式登录</h2>
-      <p>通过iframe模式安全登录，登录成功后自动保存配置</p>
+      <h2>登录</h2>
+      <p>通过二维码安全登录，登录成功后自动保存配置</p>
       
       <div class="iframe-container">
         <iframe
@@ -78,7 +78,7 @@
     <div class="card">
       <h2>手动配置</h2>
       <div class="manual-config">
-        <p style="margin-bottom: 8px;">如果嵌入式登录不工作，你也可以手动配置Cookie：</p>
+        <p style="margin-bottom: 8px;">如果无法登录，你也可以手动配置Cookie：</p>
         <button class="btn btn-secondary" @click="toggleManualForm">
           {{ showManualForm ? '隐藏手动配置' : '手动配置Cookie' }}
         </button>
@@ -117,8 +117,22 @@ const SERVICE_URL = 'https://login.bilibili.bi'
 
 // 计算属性
 const iframeUrl = computed(() => {
-  const url = `${SERVICE_URL}/?mode=iframe&targetOrigin=${encodeURIComponent(window.location.origin)}`
+  // 优先使用专门的后端URL环境变量，如果没有则从API基础URL推导
+  const backendUrl = process.env.VUE_APP_BACKEND_URL
+  const apiBaseUrl = process.env.VUE_APP_API_BASE_URL || 'http://localhost:3000/api'
+  
+  let targetOrigin
+  if (backendUrl) {
+    targetOrigin = backendUrl
+  } else {
+    targetOrigin = apiBaseUrl.replace('/api', '')
+  }
+  
+  const url = `${SERVICE_URL}/?mode=iframe&targetOrigin=${encodeURIComponent(targetOrigin)}`
   console.log('登录URL:', url)
+  console.log('API基础URL:', apiBaseUrl)
+  console.log('后端URL:', backendUrl)
+  console.log('目标Origin:', targetOrigin)
   return url
 })
 

@@ -37,21 +37,21 @@ cd ../frontend
 npm install
 ```
 
-### 启动开发服务器
+### 启动服务器
 
 #### Windows用户
 
-双击运行 `start-dev.bat` 或在命令行中执行：
+双击运行 `start.bat` 或在命令行中执行：
 
 ```bash
-start-dev.bat
+start.bat
 ```
 
 #### Linux/Mac用户
 
 ```bash
-chmod +x start-dev.sh
-./start-dev.sh
+chmod +x start.sh
+./start.sh
 ```
 
 #### 手动启动
