@@ -1,11 +1,21 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import Home from '../views/Home.vue'
+import LoginPanelPage from '../pages/LoginPanelPage.vue'
 
 const routes = [
   {
     path: '/',
     name: 'Home',
-    component: Home
+    component: LoginPanelPage
+  },
+  {
+    path: '/fav/clear',
+    name: '清理收藏夹',
+    component: () => import('../pages/ClearFavoritesPage.vue')
+  },
+  {
+    path: '/fav/move',
+    name: '移动视频',
+    component: () => import('../pages/MoveVideoPage.vue')
   }
 ]
 

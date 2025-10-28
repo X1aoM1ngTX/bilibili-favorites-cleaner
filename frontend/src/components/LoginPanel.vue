@@ -1,10 +1,11 @@
 <template>
-  <div class="login-panel">
+  <a-space direction="vertical" size="large" style="width: 100%;">
     <!-- 登录 -->
-    <div class="card">
-      <h2>登录</h2>
-      <p>通过二维码安全登录，登录成功后自动保存配置</p>
-      
+    <a-card title="登录" :bordered="false">
+      <a-typography-paragraph type="secondary">
+        通过二维码安全登录，登录成功后自动保存配置
+      </a-typography-paragraph>
+
       <div class="iframe-container">
         <iframe
           :src="iframeUrl"
@@ -14,95 +15,117 @@
           allow="fullscreen"
         ></iframe>
         <div v-if="!isIframeLoaded" class="iframe-loading">
-          <div class="spinner"></div>
-          <p>正在加载登录页面...</p>
+          <a-spin size="large" />
+          <a-typography-text type="secondary">正在加载登录页面...</a-typography-text>
         </div>
         <div v-if="iframeError" class="iframe-error">
-          <p>❌ 登录页面加载失败</p>
-          <p class="error-details">{{ iframeError }}</p>
-          <button class="btn btn-small btn-primary" @click="retryIframe">重试</button>
+          <a-result
+            status="error"
+            title="登录页面加载失败"
+            :sub-title="iframeError"
+          >
+            <template #extra>
+              <a-button type="primary" @click="retryIframe">重试</a-button>
+            </template>
+          </a-result>
         </div>
       </div>
-      
-      <div class="button-group">
-        <button class="btn btn-secondary" @click="refreshLogin">
-          🔄 刷新登录页面
-        </button>
+
+      <div style="text-align: center; margin-top: 16px;">
+        <a-button @click="refreshLogin">
+          <template #icon><ReloadOutlined /></template>
+          刷新登录页面
+        </a-button>
       </div>
-      
-      <div v-if="loginStatus.message" class="status" :class="[loginStatus.type, { 'hidden': !loginStatus.message }]">
-        {{ loginStatus.message }}
-      </div>
-    </div>
+
+      <a-alert
+        v-if="loginStatus.message"
+        :message="loginStatus.message"
+        :type="loginStatus.type"
+        :show-icon="true"
+        style="margin-top: 16px;"
+      />
+    </a-card>
 
     <!-- Cookie展示与复制 -->
-    <div class="card">
-      <h2>Cookie展示与复制</h2>
-      <p>展示当前登录的Cookie，支持一键复制</p>
-      
+    <a-card title="Cookie展示与复制" :bordered="false">
+      <a-typography-paragraph type="secondary">
+        展示当前登录的Cookie，支持一键复制
+      </a-typography-paragraph>
+
       <div class="cookie-display">
-        <div class="cookie-container">
-          <div class="cookie-header">
-            <span>当前Cookie：</span>
-            <button 
-              class="btn btn-small btn-primary" 
-              @click="copyCookie"
-              :disabled="!hasCookie"
-            >
-              📋 复制Cookie
-            </button>
-          </div>
-          <div class="cookie-content">
-            <div v-if="!hasCookie" class="cookie-placeholder">
-              请先登录获取Cookie
-            </div>
-            <div v-else class="cookie-text">
-              <pre>{{ configStore.config?.cookie }}</pre>
-            </div>
-          </div>
+        <div class="cookie-header">
+          <a-typography-text strong>当前Cookie：</a-typography-text>
+          <a-button
+            type="primary"
+            @click="copyCookie"
+            :disabled="!hasCookie"
+            size="small"
+          >
+            <template #icon><CopyOutlined /></template>
+            复制Cookie
+          </a-button>
+        </div>
+        <div class="cookie-content">
+          <a-empty v-if="!hasCookie" description="请先登录获取Cookie" />
+          <a-typography-paragraph v-else code class="cookie-text">
+            {{ configStore.config?.cookie }}
+          </a-typography-paragraph>
         </div>
       </div>
 
-      <div class="button-group">
-        <button class="btn btn-secondary" @click="refreshCookie">
-          🔄 刷新Cookie
-        </button>
+      <div style="text-align: center; margin-top: 16px;">
+        <a-button @click="refreshCookie">
+          <template #icon><ReloadOutlined /></template>
+          刷新Cookie
+        </a-button>
       </div>
 
-      <div v-if="copyStatus.message" class="status" :class="[copyStatus.type, { 'hidden': !copyStatus.message }]">
-        {{ copyStatus.message }}
-      </div>
-    </div>
+      <a-alert
+        v-if="copyStatus.message"
+        :message="copyStatus.message"
+        :type="copyStatus.type"
+        :show-icon="true"
+        style="margin-top: 16px;"
+      />
+    </a-card>
 
     <!-- 手动配置 -->
-    <div class="card">
-      <h2>手动配置</h2>
-      <div class="manual-config">
-        <p style="margin-bottom: 8px;">如果无法登录，你也可以手动配置Cookie：</p>
-        <button class="btn btn-secondary" @click="toggleManualForm">
+    <a-card title="手动配置" :bordered="false">
+      <a-typography-paragraph type="secondary">
+        如果无法登录，你也可以手动配置Cookie：
+      </a-typography-paragraph>
+
+      <div style="text-align: center;">
+        <a-button @click="toggleManualForm">
           {{ showManualForm ? '隐藏手动配置' : '手动配置Cookie' }}
-        </button>
+        </a-button>
+
         <div v-if="showManualForm" class="manual-form">
-          <textarea
-            v-model="manualCookieInput"
+          <a-textarea
+            v-model:value="manualCookieInput"
             placeholder="请粘贴完整的Cookie字符串，包含SESSDATA、bili_jct、DedeUserID等字段"
-            rows="6"
-            class="textarea"
-          ></textarea>
-          <button class="btn btn-primary" @click="saveManualCookie">保存Cookie</button>
+            :rows="6"
+            style="margin-bottom: 16px; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;"
+          />
+          <a-button type="primary" @click="saveManualCookie">
+            <template #icon><SaveOutlined /></template>
+            保存Cookie
+          </a-button>
         </div>
       </div>
-    </div>
-  </div>
+    </a-card>
+  </a-space>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useConfigStore } from '../stores/config'
-import { useToastStore } from '../stores/toast'
+import { useNotification } from '../utils/notification'
+import { ReloadOutlined, CopyOutlined, SaveOutlined } from '@ant-design/icons-vue'
 
 const configStore = useConfigStore()
-const toast = useToastStore()
+const notification = useNotification()
 
 // 状态
 const isIframeLoaded = ref(false)
@@ -262,7 +285,7 @@ async function saveManualCookie() {
   const cookieString = manualCookieInput.value.trim()
   
   if (!cookieString) {
-    toast.error('请输入Cookie')
+    notification.error('请输入Cookie')
     return
   }
 
@@ -270,7 +293,7 @@ async function saveManualCookie() {
     const parsedCookies = parseCookieString(cookieString)
     
     if (!parsedCookies.SESSDATA || !parsedCookies.bili_jct || !parsedCookies.DedeUserID) {
-      toast.error('Cookie格式不正确，缺少必要字段')
+      notification.error('Cookie格式不正确，缺少必要字段')
       return
     }
 
@@ -281,11 +304,11 @@ async function saveManualCookie() {
     }
 
     await configStore.saveConfig(config)
-    toast.success('配置保存成功')
+    notification.success('配置保存成功')
     manualCookieInput.value = ''
     showManualForm.value = false
   } catch (error) {
-    toast.error('保存配置失败: ' + error.message)
+    notification.error('保存配置失败: ' + error.message)
   }
 }
 
@@ -339,27 +362,46 @@ onMounted(() => {
       console.log('消息是对象格式:', messageData)
     }
     
-    const { type, mode, data } = messageData
-    console.log('提取的消息字段:', { type, mode, data })
-    
-    if (type === 'success') {
-      showLoginStatus(`✅ ${mode}模式登录成功！Cookie已获取`, 'success')
-      
+    const { type, mode, data, code, cookie } = messageData
+    console.log('提取的消息字段:', { type, mode, data, code, cookie })
+
+    // 支持两种登录成功格式：
+    // 1. 旧格式: { type: 'success', mode: 'xxx', data: 'cookie_string' }
+    // 2. 新格式: { code: 0, cookie: 'cookie_string', ... }
+    let isSuccess = false
+    let cookieData = null
+    let loginMode = mode
+
+    if (type === 'success' && data) {
+      // 旧格式
+      isSuccess = true
+      cookieData = data
+      loginMode = mode || '未知'
+    } else if (code === 0 && cookie) {
+      // 新格式
+      isSuccess = true
+      cookieData = cookie
+      loginMode = '扫码'
+    }
+
+    if (isSuccess && cookieData) {
+      showLoginStatus(`✅ ${loginMode}模式登录成功！Cookie已获取`, 'success')
+
       // 解析Cookie并保存配置
-      const parsedCookies = parseCookieString(data)
+      const parsedCookies = parseCookieString(cookieData)
       console.log('解析的Cookie:', parsedCookies)
-      
+
       const config = {
         up_mid: parsedCookies.DedeUserID,
         csrf_token: parsedCookies.bili_jct,
-        cookie: data
+        cookie: cookieData
       }
-      
+
       console.log('保存的配置:', config)
       
       configStore.saveConfig(config).then(() => {
-        toast.success('登录成功！配置已保存')
-        
+        notification.success('登录成功！配置已保存')
+
         // 登录成功后显示状态信息
         setTimeout(() => {
           hideLoginStatus()
@@ -371,6 +413,10 @@ onMounted(() => {
             window.dispatchEvent(event)
           }
         }, 2000)
+      }).catch((error) => {
+        console.error('保存配置失败:', error)
+        notification.error('登录成功但保存配置失败: ' + error.message)
+        showLoginStatus('❌ 配置保存失败，请检查网络连接', 'error')
       })
     }
   })
@@ -378,22 +424,16 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.login-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
 .iframe-container {
   position: relative;
   width: 420px;
   height: 610px;
   max-width: 100%;
-  border: 1px solid #e9ecef;
+  border: 1px solid #d9d9d9;
   border-radius: 8px;
   overflow: hidden;
-  margin: 1rem auto 0;
-  background: #f8f9fa;
+  margin: 16px auto 0;
+  background: #fafafa;
 }
 
 .iframe-container iframe {
@@ -413,23 +453,9 @@ onMounted(() => {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background: #f8f9fa;
+  gap: 16px;
+  background: #fafafa;
   z-index: 10;
-}
-
-.iframe-loading .spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #667eea;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 15px;
-}
-
-.iframe-loading p {
-  color: #6c757d;
-  font-size: 0.9rem;
 }
 
 .iframe-error {
@@ -438,57 +464,41 @@ onMounted(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  background: #fef2f2;
+  background: #fff;
   z-index: 10;
   padding: 20px;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.iframe-error p {
-  margin-bottom: 10px;
-  color: #721c24;
+.cookie-display {
+  margin: 16px 0;
 }
 
-.iframe-error .error-details {
-  font-size: 0.8rem;
-  color: #856404;
-  margin-bottom: 20px;
+.cookie-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+.cookie-content {
+  background: #f5f5f5;
+  padding: 12px;
+  border-radius: 6px;
+  min-height: 80px;
+}
+
+.cookie-text {
+  margin: 0;
+  word-break: break-all;
+  max-height: 200px;
+  overflow-y: auto;
 }
 
 .manual-form {
   margin-top: 20px;
   text-align: left;
-}
-
-.textarea {
-  width: 100%;
-  min-height: 120px;
-  padding: 0.75rem;
-  border: 1px solid #e9ecef;
-  border-radius: 8px;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 0.8125rem;
-  resize: vertical;
-  transition: border-color 0.3s ease;
-  margin-bottom: 15px;
-}
-
-.textarea:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.manual-config {
-  text-align: center;
 }
 </style>

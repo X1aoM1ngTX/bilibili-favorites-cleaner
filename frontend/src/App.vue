@@ -1,18 +1,13 @@
 <template>
   <div class="app">
-    <Header />
-    <main class="main">
-      <router-view />
-    </main>
-    <Toast />
+    <BasicLayouts />
   </div>
 </template>
 
 <script setup>
 import { onMounted } from 'vue'
-import Header from './components/Header.vue'
-import Toast from './components/Toast.vue'
 import { useConfigStore } from './stores/config'
+import BasicLayouts from './layouts/BasicLayout.vue'
 
 const configStore = useConfigStore()
 

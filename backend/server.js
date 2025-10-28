@@ -14,6 +14,7 @@ const configRouter = require('./routes/config');
 const favoritesRouter = require('./routes/favorites');
 const cleanRouter = require('./routes/clean');
 const convertRouter = require('./routes/convert');
+const moveRouter = require('./routes/move');
 
 // 创建Express应用
 const app = express();
@@ -37,6 +38,7 @@ app.use('/api/config', configRouter);
 app.use('/api/favorites', favoritesRouter);
 app.use('/api/clean', cleanRouter);
 app.use('/api/convert-cookies', convertRouter);
+app.use('/api/move', moveRouter);
 
 // 健康检查端点
 app.get('/health', (req, res) => {
