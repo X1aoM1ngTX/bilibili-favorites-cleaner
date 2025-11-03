@@ -9,14 +9,17 @@
 - 🍪 Cookie管理功能
 - 🎯 批量操作，支持全选/取消全选
 - 📊 实时显示清理进度
-- 🎨 现代化的用户界面
+- 🎨 现代化的用户界面（基于Ant Design Vue）
+- 🔄 收藏夹移动功能（支持跨收藏夹移动视频）
+- 📋 收藏夹排序功能（拖拽调整收藏夹顺序）
 
 ## 技术栈
 
-- **前端**: Vue 3 + Pinia + Vue Router
+- **前端**: Vue 3 + Pinia + Vue Router + Ant Design Vue
 - **后端**: Node.js + Express
 - **样式**: CSS3 + 响应式设计
 - **HTTP客户端**: Axios
+- **架构**: 前后端分离
 
 ## 快速开始
 
@@ -72,9 +75,9 @@ npm run serve
 
 ### 访问应用
 
-- 前端地址: http://localhost:8080
-- 后端API: http://localhost:3000
-- 健康检查: http://localhost:3000/health
+- 前端地址: http://localhost:3000
+- 后端API: http://localhost:8080
+- 健康检查: http://localhost:8080/health
 
 ## 使用说明
 
@@ -93,7 +96,23 @@ npm run serve
 4. 点击"清理选中的收藏夹"开始清理
 5. 等待清理完成，查看结果
 
-### 3. 手动配置Cookie
+### 3. 移动视频
+
+1. 登录成功后，切换到"移动视频"选项卡
+2. 选择源收藏夹（要移出视频的收藏夹）
+3. 选择目标收藏夹（要移入视频的收藏夹）
+4. 系统会自动检测可移动的视频
+5. 选择要移动的视频，点击"移动选中的视频"
+
+### 4. 收藏夹排序（新功能）
+
+1. 登录成功后，切换到"收藏夹排序"选项卡
+2. 系统会加载您的收藏夹列表
+3. 按住左侧菜单图标拖拽收藏夹来调整顺序
+4. 默认收藏夹无法移动，会始终保持在第一位
+5. 调整完成后，点击"保存排序"
+
+### 5. 手动配置Cookie
 
 如果二维码登录不工作，您也可以手动配置Cookie：
 
@@ -104,21 +123,32 @@ npm run serve
 ## 项目结构
 
 ```
-rebuild/
+bilibili-favorites-cleaner/
 ├── backend/                 # 后端代码
 │   ├── routes/             # API路由
+│   │   ├── config.js       # 配置管理
+│   │   ├── favorites.js    # 收藏夹管理
+│   │   ├── clean.js        # 清理功能
+│   │   ├── convert.js      # Cookie转换
+│   │   ├── move.js         # 移动功能
+│   │   └── sort.js         # 排序功能
 │   ├── utils/              # 工具函数
 │   └── server.js           # 服务器入口
 ├── frontend/               # 前端代码
 │   ├── src/
 │   │   ├── components/     # Vue组件
+│   │   │   ├── LoginPanel.vue    # 登录面板
+│   │   │   ├── CleanPanel.vue    # 清理面板
+│   │   │   ├── MovePanel.vue     # 移动面板
+│   │   │   └── SortPanel.vue     # 排序面板
+│   │   ├── layouts/        # 布局组件
+│   │   ├── pages/          # 页面组件
 │   │   ├── stores/         # Pinia状态管理
 │   │   ├── utils/          # 工具函数
-│   │   └── views/          # 页面视图
+│   │   └── router/         # 路由配置
 │   └── package.json
-├── start-dev.js            # 开发环境启动脚本
-├── start-dev.bat           # Windows启动脚本
-├── start-dev.sh            # Linux/Mac启动脚本
+├── start.sh                # Linux/Mac启动脚本
+├── start.bat               # Windows启动脚本
 └── README.md               # 说明文档
 ```
 
@@ -140,15 +170,32 @@ rebuild/
 - `POST /api/clean` - 清理单个收藏夹
 - `POST /api/clean/batch` - 批量清理收藏夹
 
+### 移动操作
+
+- `GET /api/move/favorites` - 获取收藏夹列表
+- `GET /api/move/videos/:sourceId/:targetId` - 获取可移动的视频
+- `POST /api/move/videos` - 移动视频到目标收藏夹
+
+### 排序操作
+
+- `GET /api/sort/folders` - 获取收藏夹列表
+- `POST /api/sort/execute` - 执行收藏夹排序
+
 ## 开发说明
 
 ### 前端开发
 
-前端使用Vue 3 + Composition API开发，状态管理使用Pinia。
+前端使用Vue 3 + Composition API开发，状态管理使用Pinia，UI组件库使用Ant Design Vue。
 
 ### 后端开发
 
 后端使用Express框架，提供RESTful API接口。
+
+### 开发环境端口配置
+
+- 前端开发服务器：3000端口
+- 后端API服务器：8080端口
+- 前端通过代理访问后端API，避免跨域问题
 
 ### 调试技巧
 

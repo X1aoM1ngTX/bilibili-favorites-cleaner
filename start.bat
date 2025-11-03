@@ -33,8 +33,8 @@ echo.
 echo [3/3] 启动服务...
 echo 正在启动后端API服务和前端应用...
 echo.
-echo 后端服务: http://localhost:3000
-echo 前端应用: http://localhost:8080
+echo 后端服务: http://localhost:8080
+echo 前端应用: http://localhost:3000
 echo.
 echo 按 Ctrl+C 停止服务
 echo.

@@ -16,6 +16,11 @@ const routes = [
     path: '/fav/move',
     name: '移动视频',
     component: () => import('../pages/MoveVideoPage.vue')
+  },
+  {
+    path: '/fav/sort',
+    name: '收藏夹排序',
+    component: () => import('../pages/SortFavoritesPage.vue')
   }
 ]
 

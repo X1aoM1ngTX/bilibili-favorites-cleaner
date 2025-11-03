@@ -16,6 +16,9 @@
           <router-link to="/fav/move" class="nav-item" :class="{ active: $route.name === '移动视频' }">
             移动视频
           </router-link>
+          <router-link to="/fav/sort" class="nav-item" :class="{ active: $route.name === '收藏夹排序' }">
+            收藏夹排序
+          </router-link>
         </div>
         <div class="config-status">
           <a-badge :status="statusBadgeType" :text="configStore.statusText" />

@@ -15,12 +15,13 @@ const favoritesRouter = require('./routes/favorites');
 const cleanRouter = require('./routes/clean');
 const convertRouter = require('./routes/convert');
 const moveRouter = require('./routes/move');
+const sortRouter = require('./routes/sort');
 
 // 创建Express应用
 const app = express();
 
 // 配置
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 const HOST = process.env.HOST || 'localhost';
 
 // 中间件
@@ -39,6 +40,7 @@ app.use('/api/favorites', favoritesRouter);
 app.use('/api/clean', cleanRouter);
 app.use('/api/convert-cookies', convertRouter);
 app.use('/api/move', moveRouter);
+app.use('/api/sort', sortRouter);
 
 // 健康检查端点
 app.get('/health', (req, res) => {
