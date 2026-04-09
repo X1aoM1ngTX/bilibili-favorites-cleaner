@@ -14,6 +14,18 @@ export async function POST(request: NextRequest) {
     }
 
     const api = new BilibiliApi(cookie);
+
+    // 清理前：获取收藏夹当前视频数量
+    const beforeFolders = await api.getFavoriteFolders(
+      // 从 cookie 中提取 up_mid
+      cookie.match(/DedeUserID=(\d+)/)?.[1] || ''
+    );
+    const beforeFolder = beforeFolders.data?.list?.find(
+      (f: { id: number }) => f.id === mediaId
+    );
+    const beforeCount = beforeFolder?.media_count ?? 0;
+
+    // 执行清理
     const response = await api.cleanFavoriteMedia(mediaId, csrf);
 
     if (response.code !== 0) {
@@ -23,9 +35,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 清理后：重新获取视频数量，计算差值
+    const afterFolders = await api.getFavoriteFolders(
+      cookie.match(/DedeUserID=(\d+)/)?.[1] || ''
+    );
+    const afterFolder = afterFolders.data?.list?.find(
+      (f: { id: number }) => f.id === mediaId
+    );
+    const afterCount = afterFolder?.media_count ?? 0;
+    const cleanedCount = Math.max(0, beforeCount - afterCount);
+
     return NextResponse.json({
       success: true,
-      data: response.data,
+      data: cleanedCount,
     });
   } catch (error) {
     console.error('Clean API error:', error);

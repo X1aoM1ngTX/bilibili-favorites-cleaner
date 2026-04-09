@@ -17,7 +17,6 @@ import {
   RefreshCw,
   Search,
   X,
-  ExternalLink,
 } from 'lucide-react';
 
 interface CleanResult {
@@ -248,67 +247,64 @@ function FolderItem({
   return (
     <div
       onClick={disabled ? undefined : onToggle}
-      className={`group relative flex items-center gap-4 rounded-xl border p-4 transition-all duration-200 cursor-pointer select-none ${
+      className={`group relative flex flex-col items-center rounded-xl border p-4 transition-all duration-200 cursor-pointer select-none ${
         selected
           ? 'border-bili-pink/40 bg-bili-pink-50 shadow-sm'
           : 'border-gray-100 bg-white hover:border-gray-200 hover:shadow-sm'
       } ${disabled ? 'opacity-60 pointer-events-none' : ''}`}
     >
-      {/* Custom Checkbox */}
-      <div
-        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-all duration-200 ${
-          selected
-            ? 'border-bili-pink bg-bili-pink'
-            : 'border-gray-300 group-hover:border-gray-400'
-        }`}
-      >
-        {selected && (
-          <svg
-            className="h-3 w-3 text-white"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={3}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M5 13l4 4L19 7"
-            />
-          </svg>
+      {/* Checkbox + Default badge */}
+      <div className="mb-2 flex w-full items-center justify-between">
+        <div
+          className={`flex h-5 w-5 items-center justify-center rounded-md border-2 transition-all duration-200 ${
+            selected
+              ? 'border-bili-pink bg-bili-pink'
+              : 'border-gray-300 group-hover:border-gray-400'
+          }`}
+        >
+          {selected && (
+            <svg
+              className="h-3 w-3 text-white"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={3}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+          )}
+        </div>
+        {isDefault && (
+          <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+            默认
+          </span>
         )}
       </div>
 
       {/* Folder Icon */}
       <div
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors duration-200 ${
+        className={`mb-3 flex h-12 w-12 items-center justify-center rounded-xl transition-colors duration-200 ${
           selected ? 'bg-bili-pink/15' : 'bg-gray-50 group-hover:bg-gray-100'
         }`}
       >
         <FolderOpen
-          className={`h-5 w-5 transition-colors duration-200 ${
-            selected ? 'text-bili-pink' : 'text-gray-500 group-hover:text-gray-600'
+          className={`h-6 w-6 transition-colors duration-200 ${
+            selected ? 'text-bili-pink' : 'text-gray-400 group-hover:text-gray-500'
           }`}
         />
       </div>
 
       {/* Content */}
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="truncate font-medium text-gray-900">{folder.title}</p>
-          {isDefault && (
-            <span className="shrink-0 rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
-              默认
-            </span>
-          )}
-        </div>
-        <p className="mt-0.5 text-sm text-gray-600">
+      <div className="w-full min-w-0 text-center">
+        <p className="truncate text-sm font-medium text-gray-900">{folder.title}</p>
+        <p className="mt-0.5 text-xs text-gray-500">
           {formatNumber(folder.media_count)} 个内容
         </p>
       </div>
-
-      {/* Hover action hint */}
-      <ExternalLink className="h-4 w-4 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity duration-200 shrink-0" />
     </div>
   );
 }
@@ -611,7 +607,7 @@ export function CleanPanel() {
           {/* Folder list */}
           {favoriteFolders.length > 0 ? (
             filteredFolders.length > 0 ? (
-              <div className="space-y-2">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                 {filteredFolders.map((folder) => (
                   <FolderItem
                     key={folder.id}
@@ -622,7 +618,7 @@ export function CleanPanel() {
                   />
                 ))}
                 {searchQuery && filteredFolders.length < favoriteFolders.length && (
-                  <p className="py-2 text-center text-xs text-gray-500">
+                  <p className="col-span-full py-2 text-center text-xs text-gray-500">
                     显示 {filteredFolders.length} / {favoriteFolders.length} 个收藏夹
                   </p>
                 )}
