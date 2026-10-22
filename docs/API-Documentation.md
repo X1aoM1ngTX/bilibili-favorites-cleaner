@@ -1,5 +1,21 @@
 # Bilibili 收藏夹清理工具 API 文档
 
+> **当前实现说明**
+>
+> 本文档主体是早期版本（Express 后端）的抓包记录，其中提到的 `/api/config`、`/api/convert`、`/api/clean/batch`、`/api/move/*`、`/api/sort/execute` 等本地接口**在当前 Next.js 版本中并不存在**。
+>
+> 当前实际提供的本地接口：
+>
+> | 接口 | 方法 | 说明 |
+> |------|------|------|
+> | `/api/favorites` | POST | 收藏夹列表（`up_mid` + `cookie`）或收藏夹内容（`mediaId` + `cookie`，可选 `pn`/`ps`，单页最大 40） |
+> | `/api/clean` | POST | 清理单个收藏夹，返回 `{ cleaned }` |
+> | `/api/move` | POST | 移动视频到其他收藏夹 |
+> | `/api/sort` | POST | 收藏夹排序 |
+> | `/api/login/qrcode` | GET / POST | GET 申请二维码；POST `{ qrcode_key }` 轮询扫码状态，成功后返回 Cookie |
+>
+> 另外：二维码登录接口的域名已从 `api.bilibili.com` 迁移到 **`passport.bilibili.com`**，旧地址会返回 404。
+
 本文档基于 bilibili-favorites-cleaner 项目逆向分析得出的所有 API 接口信息，包括本地后端接口和 Bilibili 原始 API。
 
 ## 目录

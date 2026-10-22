@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BilibiliApi } from '@/lib/bilibili-api';
+import { apiErrorResponse } from '@/lib/api-error';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { up_mid, cookie, mediaId } = body;
+    const { up_mid, cookie, mediaId, pn, ps } = body;
 
     // Get favorite folders list
     if (up_mid && cookie && !mediaId) {
@@ -18,16 +19,27 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // B站对不存在的用户可能返回 code 0 + data:null，统一成空列表
       return NextResponse.json({
         success: true,
-        data: response.data,
+        data: {
+          ...(response.data ?? {}),
+          list: response.data?.list ?? [],
+        },
       });
     }
 
     // Get favorite folder detail (video list)
     if (mediaId && cookie) {
       const api = new BilibiliApi(cookie);
-      const response = await api.getFavoriteResources(mediaId);
+      // B站单页最大 40 条
+      const pageSize = Math.min(Math.max(Number(ps) || 40, 1), 40);
+      const pageNumber = Math.max(Number(pn) || 1, 1);
+      const response = await api.getFavoriteResources(
+        mediaId,
+        pageNumber,
+        pageSize
+      );
 
       if (response.code !== 0) {
         return NextResponse.json(
@@ -38,7 +50,11 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        data: response.data,
+        data: {
+          ...(response.data ?? {}),
+          medias: response.data?.medias ?? [],
+          has_more: response.data?.has_more ?? false,
+        },
       });
     }
 
@@ -47,10 +63,6 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json(
-      { success: false, error: errorMessage },
-      { status: 500 }
-    );
+    return apiErrorResponse(error, 'Internal server error');
   }
 }

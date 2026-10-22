@@ -8,7 +8,7 @@ import { Alert } from '@/components/ui/alert';
 import { Spinner } from '@/components/ui/spinner';
 import { FavoriteFolder } from '@/types';
 import { formatNumber } from '@/lib/utils';
-import { GripVertical } from 'lucide-react';
+import { ArrowUpDown, GripVertical } from 'lucide-react';
 
 export function SortPanel() {
   const { userConfig } = useAppStore();
@@ -143,7 +143,7 @@ export function SortPanel() {
 
   if (loading) {
     return (
-      <Card className="mx-auto max-w-4xl">
+      <Card className="w-full">
         <CardContent className="flex items-center justify-center py-12">
           <Spinner className="mr-2" />
           <p className="text-lg text-gray-600">加载中...</p>
@@ -153,20 +153,39 @@ export function SortPanel() {
   }
 
   return (
-    <Card className="mx-auto max-w-4xl">
-      <CardHeader>
-        <CardTitle>收藏夹排序</CardTitle>
+    <Card className="flex h-full w-full flex-col overflow-hidden">
+      <CardHeader className="shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-bili-pink-50">
+            <ArrowUpDown className="h-5 w-5 text-bili-pink" />
+          </div>
+          <div>
+            <CardTitle>收藏夹排序</CardTitle>
+            <p className="mt-0.5 hidden text-sm text-gray-600 sm:block">
+              拖拽调整显示顺序，默认收藏夹固定第一位
+            </p>
+          </div>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {error && <Alert variant="error">{error}</Alert>}
-        {successMsg && <Alert variant="success">{successMsg}</Alert>}
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-4 p-6 pt-0">
+        {error && (
+          <Alert variant="error" className="shrink-0">
+            {error}
+          </Alert>
+        )}
+        {successMsg && (
+          <Alert variant="success" className="shrink-0">
+            {successMsg}
+          </Alert>
+        )}
 
-        <Alert variant="warning">
+        <Alert variant="warning" className="shrink-0">
           拖拽收藏夹来调整顺序。默认收藏夹无法移动，始终保持在第一位。一次最多排序 20 个收藏夹。
         </Alert>
 
-        <div className="flex justify-end">
+        <div className="flex shrink-0 justify-end">
           <Button
+            variant="bili"
             onClick={handleSaveSort}
             disabled={sorting || sortedFolders.length === 0}
           >
@@ -181,7 +200,7 @@ export function SortPanel() {
           </Button>
         </div>
 
-        <div className="space-y-2">
+        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
           {sortedFolders.map((folder) => (
             <div
               key={folder.id}
@@ -190,26 +209,28 @@ export function SortPanel() {
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, folder.id)}
               onDragEnd={handleDragEnd}
-              className={`flex items-center gap-3 rounded-md border p-4 ${
+              className={`flex items-center gap-3 rounded-xl border px-4 py-3.5 transition-colors ${
                 draggedItem === folder.id
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200'
-              } ${folder.attr === 0 ? 'cursor-not-allowed bg-gray-50' : 'cursor-move'}`}
+                  ? 'border-bili-pink/50 bg-bili-pink-50'
+                  : folder.attr === 0
+                    ? 'border-gray-200 bg-gray-50 cursor-not-allowed'
+                    : 'border-gray-200 bg-white cursor-move hover:bg-gray-50/60'
+              }`}
             >
-              <GripVertical className="h-5 w-5 text-gray-400" />
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">
+              <GripVertical className="h-4 w-4 shrink-0 text-gray-300" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium text-gray-900">
                   {folder.title}
                   {folder.attr === 0 && (
-                    <span className="ml-2 rounded bg-blue-100 px-2 py-0.5 text-xs text-blue-800">
+                    <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
                       默认
                     </span>
                   )}
                 </p>
-                <p className="text-sm text-gray-500">
-                  {formatNumber(folder.media_count)} 个视频
-                </p>
               </div>
+              <span className="shrink-0 text-sm tabular-nums text-gray-500">
+                {formatNumber(folder.media_count)} 个视频
+              </span>
             </div>
           ))}
         </div>

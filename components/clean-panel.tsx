@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAppStore } from '@/store/use-app-store';
+import { FavoriteFolder } from '@/types';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
@@ -25,6 +26,46 @@ interface CleanResult {
   count: number;
   success: boolean;
   message?: string;
+  /** B站 clean 接口自己返回的清理数量，刷新失败时作为兜底 */
+  serverCleaned?: number | null;
+  /** 数量还没同步回来，界面显示“同步中” */
+  pending?: boolean;
+}
+
+/** B站收藏夹数量有同步延迟，清理结束后分几次回查 */
+const CLEAN_SYNC_DELAYS = [2500, 6000, 12000];
+
+/** 用「清理前快照 - 刷新后数量」回填每个夹的清理数量 */
+function resolveCounts(
+  list: FavoriteFolder[] | null,
+  results: CleanResult[],
+  beforeCounts: Map<number, number>
+): CleanResult[] {
+  return results.map((item) => {
+    if (!item.success) return item;
+
+    const before = beforeCounts.get(item.id);
+    const after = list?.find((folder) => folder.id === item.id)?.media_count;
+
+    let count = item.serverCleaned ?? 0;
+    if (before !== undefined && after !== undefined) {
+      count = Math.max(count, before - after);
+    }
+
+    const hasServerCount = typeof item.serverCleaned === 'number';
+    const pending = count === 0 && !hasServerCount;
+
+    return {
+      ...item,
+      count,
+      pending,
+      message: pending
+        ? '清理完成，数量同步中…'
+        : count > 0
+          ? `清理了 ${count} 个失效视频`
+          : '未发现失效视频',
+    };
+  });
 }
 
 /* ---------- Skeleton Loader ---------- */
@@ -320,36 +361,49 @@ export function CleanPanel() {
   const [error, setError] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  /** 每轮清理一个编号，用于丢弃过期的延迟刷新结果 */
+  const cleanRunRef = useRef(0);
 
-  const loadFavoriteFolders = useCallback(async () => {
-    if (!userConfig) return;
+  const loadFavoriteFolders = useCallback(
+    async (silent = false): Promise<FavoriteFolder[] | null> => {
+      if (!userConfig) return null;
 
-    setLoading(true);
-    setError('');
-
-    try {
-      const response = await fetch('/api/favorites', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          up_mid: userConfig.up_mid,
-          cookie: userConfig.cookie,
-        }),
-      });
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || '加载收藏夹失败');
+      if (!silent) {
+        setLoading(true);
+        setError('');
       }
 
-      setFavoriteFolders(result.data.list);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '加载收藏夹失败';
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  }, [userConfig, setFavoriteFolders]);
+      try {
+        const response = await fetch('/api/favorites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            up_mid: userConfig.up_mid,
+            cookie: userConfig.cookie,
+          }),
+        });
+        const result = await response.json();
+
+        if (!result.success) {
+          throw new Error(result.error || '加载收藏夹失败');
+        }
+
+        const list = (result.data.list ?? []) as FavoriteFolder[];
+        setFavoriteFolders(list);
+        return list;
+      } catch (err) {
+        if (!silent) {
+          const errorMessage =
+            err instanceof Error ? err.message : '加载收藏夹失败';
+          setError(errorMessage);
+        }
+        return null;
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [userConfig, setFavoriteFolders]
+  );
 
   useEffect(() => {
     loadFavoriteFolders();
@@ -388,72 +442,114 @@ export function CleanPanel() {
   const handleClean = async () => {
     if (!userConfig || selectedFolders.size === 0) return;
 
+    const runId = ++cleanRunRef.current;
+
     setCleaning(true);
     setCleanResults([]);
     setError('');
 
     const folderIds = Array.from(selectedFolders);
+    // 清理前的数量快照（来自当前列表，不额外发请求）
+    const beforeCounts = new Map<number, number>(
+      favoriteFolders
+        .filter((folder) => selectedFolders.has(folder.id))
+        .map((folder) => [folder.id, folder.media_count] as [number, number])
+    );
+
     setCleanProgress({ current: 0, total: folderIds.length });
 
-    try {
-      const results: CleanResult[] = [];
+    const results: CleanResult[] = [];
+    let rateLimited = false;
 
-      for (let i = 0; i < folderIds.length; i++) {
-        const folderId = folderIds[i];
-        const folder = favoriteFolders.find((f) => f.id === folderId);
-        if (!folder) continue;
+    for (let i = 0; i < folderIds.length; i++) {
+      const folderId = folderIds[i];
+      const folder = favoriteFolders.find((f) => f.id === folderId);
+      if (!folder) continue;
 
-        setCleanProgress({ current: i + 1, total: folderIds.length });
+      setCleanProgress({ current: i + 1, total: folderIds.length });
 
-        try {
-          const response = await fetch('/api/clean', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              mediaId: folderId,
-              cookie: userConfig.cookie,
-              csrf: userConfig.csrf_token,
-            }),
-          });
+      try {
+        // 服务端已做串行限速（写请求间隔约 3 秒），这里不再额外 sleep
+        const response = await fetch('/api/clean', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mediaId: folderId,
+            cookie: userConfig.cookie,
+            csrf: userConfig.csrf_token,
+          }),
+        });
 
-          const result = await response.json();
+        const result = await response.json();
 
-          results.push({
-            id: folderId,
-            title: folder.title,
-            count: result.data || 0,
-            success: result.success,
-            message: result.success
-              ? `清理了 ${result.data || 0} 个失效视频`
-              : result.error || '清理失败',
-          });
-        } catch {
+        // 命中限流：立刻停止剩余任务，避免把账号风险放大
+        if (result.rateLimited) {
+          rateLimited = true;
           results.push({
             id: folderId,
             title: folder.title,
             count: 0,
             success: false,
-            message: '请求失败',
+            message: result.error || '触发 B 站限流',
           });
+          break;
         }
-      }
 
-      setCleanResults(results);
-      setSelectedFolders(new Set());
-      loadFavoriteFolders();
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '清理失败';
-      setError(errorMessage);
-    } finally {
-      setCleaning(false);
-      setConfirmOpen(false);
+        results.push({
+          id: folderId,
+          title: folder.title,
+          count: 0,
+          success: result.success,
+          message: result.success ? '' : result.error || '清理失败',
+          serverCleaned: result.data?.cleaned ?? null,
+        });
+      } catch {
+        results.push({
+          id: folderId,
+          title: folder.title,
+          count: 0,
+          success: false,
+          message: '请求失败',
+        });
+      }
+    }
+
+    // 整批只刷新一次列表，用「清理前快照 - 清理后数量」回填每个夹清理了多少
+    const latest = await loadFavoriteFolders(true);
+    setCleanResults(resolveCounts(latest, results, beforeCounts));
+    setSelectedFolders(new Set());
+    setCleaning(false);
+    setConfirmOpen(false);
+
+    // B站数量同步有延迟：分几次回查，数量对上了就自动更新界面
+    if (results.some((item) => item.success)) {
+      CLEAN_SYNC_DELAYS.forEach((delay) => {
+        setTimeout(async () => {
+          if (cleanRunRef.current !== runId) return;
+
+          const refreshed = await loadFavoriteFolders(true);
+          if (cleanRunRef.current !== runId) return;
+
+          setCleanResults((current) =>
+            current.length === 0
+              ? current
+              : resolveCounts(refreshed, current, beforeCounts)
+          );
+        }, delay);
+      });
+    }
+
+    if (rateLimited) {
+      setError(
+        '已触发 B 站接口限流，剩余收藏夹已跳过。建议等待 5-30 分钟后再试，期间避免频繁刷新。'
+      );
     }
   };
 
   /* ---- Render: Loading skeleton ---- */
   if (loading) {
     return (
-      <Card className="mx-auto max-w-4xl">
+      <Card className="w-full">
         <CardHeader>
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-bili-pink-50">
@@ -461,7 +557,7 @@ export function CleanPanel() {
             </div>
             <div>
               <CardTitle>清理失效视频</CardTitle>
-              <p className="mt-0.5 text-sm text-gray-600">
+              <p className="mt-0.5 hidden text-sm text-gray-600 sm:block">
                 选择收藏夹，批量清理其中的失效视频
               </p>
             </div>
@@ -481,7 +577,7 @@ export function CleanPanel() {
   /* ---- Render: Error state ---- */
   if (error && favoriteFolders.length === 0) {
     return (
-      <Card className="mx-auto max-w-4xl">
+      <Card className="w-full">
         <CardHeader>
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-bili-pink-50">
@@ -489,7 +585,7 @@ export function CleanPanel() {
             </div>
             <div>
               <CardTitle>清理失效视频</CardTitle>
-              <p className="mt-0.5 text-sm text-gray-600">
+              <p className="mt-0.5 hidden text-sm text-gray-600 sm:block">
                 选择收藏夹，批量清理其中的失效视频
               </p>
             </div>
@@ -505,8 +601,8 @@ export function CleanPanel() {
   /* ---- Render: Main UI ---- */
   return (
     <>
-      <Card className="mx-auto max-w-4xl">
-        <CardHeader>
+      <Card className="flex h-full w-full flex-col overflow-hidden">
+        <CardHeader className="shrink-0">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-bili-pink-50">
@@ -514,7 +610,7 @@ export function CleanPanel() {
               </div>
               <div>
                 <CardTitle>清理失效视频</CardTitle>
-                <p className="mt-0.5 text-sm text-gray-600">
+                <p className="mt-0.5 hidden text-sm text-gray-600 sm:block">
                   选择收藏夹，批量清理其中的失效视频
                 </p>
               </div>
@@ -522,7 +618,7 @@ export function CleanPanel() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={loadFavoriteFolders}
+              onClick={() => loadFavoriteFolders()}
               title="刷新列表"
             >
               <RefreshCw className="h-4 w-4" />
@@ -530,31 +626,37 @@ export function CleanPanel() {
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-4">
+        <CardContent className="flex min-h-0 flex-1 flex-col gap-4 p-6 pt-0">
           {/* Results banner */}
           {cleanResults.length > 0 && (
-            <ResultBanner
-              results={cleanResults}
-              onDismiss={() => setCleanResults([])}
-            />
+            <div className="shrink-0">
+              <ResultBanner
+                results={cleanResults}
+                onDismiss={() => setCleanResults([])}
+              />
+            </div>
           )}
 
           {/* Inline error */}
           {error && favoriteFolders.length > 0 && (
-            <Alert variant="error">{error}</Alert>
+            <Alert variant="error" className="shrink-0">
+              {error}
+            </Alert>
           )}
 
           {/* Progress bar during cleaning */}
           {cleaning && (
-            <ProgressBar
-              current={cleanProgress.current}
-              total={cleanProgress.total}
-            />
+            <div className="shrink-0">
+              <ProgressBar
+                current={cleanProgress.current}
+                total={cleanProgress.total}
+              />
+            </div>
           )}
 
           {/* Search + Actions bar */}
           {favoriteFolders.length > 0 && (
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               {/* Search */}
               <div className="relative flex-1 max-w-xs">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -604,46 +706,58 @@ export function CleanPanel() {
             </div>
           )}
 
-          {/* Folder list */}
-          {favoriteFolders.length > 0 ? (
-            filteredFolders.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {filteredFolders.map((folder) => (
-                  <FolderItem
-                    key={folder.id}
-                    folder={folder}
-                    selected={selectedFolders.has(folder.id)}
-                    onToggle={() => handleToggleFolder(folder.id)}
-                    disabled={cleaning}
-                  />
-                ))}
-                {searchQuery && filteredFolders.length < favoriteFolders.length && (
-                  <p className="col-span-full py-2 text-center text-xs text-gray-500">
-                    显示 {filteredFolders.length} / {favoriteFolders.length} 个收藏夹
+          {/* Folder list（只有这一块滚动） */}
+          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+            {favoriteFolders.length > 0 ? (
+              filteredFolders.length > 0 ? (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
+                  {filteredFolders.map((folder) => (
+                    <FolderItem
+                      key={folder.id}
+                      folder={folder}
+                      selected={selectedFolders.has(folder.id)}
+                      onToggle={() => handleToggleFolder(folder.id)}
+                      disabled={cleaning}
+                    />
+                  ))}
+                  {searchQuery && filteredFolders.length < favoriteFolders.length && (
+                    <p className="col-span-full py-2 text-center text-xs text-gray-500">
+                      显示 {filteredFolders.length} / {favoriteFolders.length} 个收藏夹
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center py-12 text-center">
+                  <Search className="mb-2 h-8 w-8 text-gray-300" />
+                  <p className="text-sm text-gray-600">
+                    未找到匹配「{searchQuery}」的收藏夹
                   </p>
-                )}
-              </div>
+                </div>
+              )
             ) : (
-              <div className="flex flex-col items-center py-12 text-center">
-                <Search className="mb-2 h-8 w-8 text-gray-300" />
-                <p className="text-sm text-gray-600">
-                  未找到匹配「{searchQuery}」的收藏夹
-                </p>
-              </div>
-            )
-          ) : (
-            <EmptyState />
-          )}
+              <EmptyState />
+            )}
+          </div>
 
           {/* Bottom info */}
           {favoriteFolders.length > 0 && (
-            <div className="flex items-center justify-between border-t border-gray-100 pt-3">
-              <p className="text-xs text-gray-500">
-                共 {favoriteFolders.length} 个收藏夹
-                {selectedCount > 0 && `，已选 ${selectedCount} 个`}
-              </p>
-              <p className="text-xs text-gray-500">
-                总计 {formatNumber(favoriteFolders.reduce((s, f) => s + f.media_count, 0))} 个内容
+            <div className="shrink-0 space-y-1 border-t border-gray-100 pt-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-500">
+                  共 {favoriteFolders.length} 个收藏夹
+                  {selectedCount > 0 && `，已选 ${selectedCount} 个`}
+                </p>
+                <p className="text-xs text-gray-500">
+                  总计{' '}
+                  {formatNumber(
+                    favoriteFolders.reduce((s, f) => s + f.media_count, 0)
+                  )}{' '}
+                  个内容
+                </p>
+              </div>
+              <p className="text-[11px] text-gray-400">
+                批量清理会逐个执行并自动限速（约 3 秒/个），以规避 B
+                站风控；命中限流会立即停止剩余任务。
               </p>
             </div>
           )}
@@ -656,7 +770,9 @@ export function CleanPanel() {
         onClose={() => !cleaning && setConfirmOpen(false)}
         onConfirm={handleClean}
         title="确认清理失效视频"
-        description={`即将清理 ${selectedCount} 个收藏夹中的失效视频，此操作不可撤销。是否继续？`}
+        description={`即将清理 ${selectedCount} 个收藏夹中的失效视频，此操作不可撤销。为避免触发 B 站风控，任务会逐个执行，预计约 ${Math.ceil(
+          selectedCount * 3.3
+        )} 秒。`}
         confirmText={`确认清理 (${selectedCount})`}
         loading={cleaning}
       />

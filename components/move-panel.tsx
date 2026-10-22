@@ -6,8 +6,10 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { Spinner } from '@/components/ui/spinner';
+import { Select } from '@/components/ui/select';
 import { VideoInfo, FavoriteFolder } from '@/types';
 import { formatNumber, formatTimestamp } from '@/lib/utils';
+import { ArrowRightLeft, RefreshCw } from 'lucide-react';
 
 const MAX_VIDEOS_PER_FOLDER = 1000;
 const MAX_MOVE_PER_BATCH = 40;
@@ -25,6 +27,7 @@ export function MovePanel() {
   const [srcFolderId, setSrcFolderId] = useState<number | null>(null);
   const [tarFolderId, setTarFolderId] = useState<number | null>(null);
   const [videos, setVideos] = useState<VideoInfo[]>([]);
+  const [hasMore, setHasMore] = useState(false);
   const [selectedVideos, setSelectedVideos] = useState<Set<number>>(new Set());
   const [error, setError] = useState('');
   const [moveResult, setMoveResult] = useState<MoveResult | null>(null);
@@ -85,6 +88,7 @@ export function MovePanel() {
       }
 
       setVideos(result.data.medias || []);
+      setHasMore(Boolean(result.data.has_more));
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '加载视频失败';
       setError(errorMessage);
@@ -101,6 +105,14 @@ export function MovePanel() {
   const handleTarFolderChange = (folderId: number) => {
     setTarFolderId(folderId);
     setMoveResult(null);
+  };
+
+  // B站收藏夹的 media_count 有同步延迟，操作完成后再补一次刷新
+  const refreshAfterChange = (folderId: number) => {
+    setTimeout(() => {
+      loadVideos(folderId);
+      loadFavoriteFolders(true);
+    }, 2500);
   };
 
   const handleToggleVideo = (videoId: number) => {
@@ -235,6 +247,7 @@ export function MovePanel() {
 
       loadVideos(srcFolderId);
       loadFavoriteFolders(true);
+      refreshAfterChange(srcFolderId);
       setSelectedVideos(new Set());
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '移动失败';
@@ -319,6 +332,7 @@ export function MovePanel() {
       // 刷新数据（静默，不触发 loading 状态）
       loadVideos(srcFolderId);
       loadFavoriteFolders(true);
+      refreshAfterChange(srcFolderId);
       setSelectedVideos(new Set());
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '移动失败';
@@ -332,7 +346,7 @@ export function MovePanel() {
 
   if (loading) {
     return (
-      <Card className="mx-auto max-w-4xl">
+      <Card className="w-full">
         <CardContent className="flex items-center justify-center py-12">
           <Spinner className="mr-2" />
           <p className="text-lg text-gray-600">加载中...</p>
@@ -342,58 +356,86 @@ export function MovePanel() {
   }
 
   return (
-    <Card className="mx-auto max-w-4xl">
-      <CardHeader>
-        <CardTitle>移动视频</CardTitle>
+    <Card className="flex h-full w-full flex-col overflow-hidden">
+      <CardHeader className="shrink-0">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-bili-pink-50">
+              <ArrowRightLeft className="h-5 w-5 text-bili-pink" />
+            </div>
+            <div>
+              <CardTitle>移动视频</CardTitle>
+              <p className="mt-0.5 hidden text-sm text-gray-600 sm:block">
+                在收藏夹之间批量移动视频，自动校验目标容量
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => loadFavoriteFolders()}
+            title="刷新列表"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {error && <Alert variant="error">{error}</Alert>}
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-4 p-6 pt-0">
+        {error && (
+          <Alert variant="error" className="shrink-0">
+            {error}
+          </Alert>
+        )}
 
         {moveResult && (
-          <Alert variant={moveResult.success ? 'success' : 'error'}>
+          <Alert
+            variant={moveResult.success ? 'success' : 'error'}
+            className="shrink-0"
+          >
             {moveResult.message}
           </Alert>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid shrink-0 grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700">
               源收藏夹
             </label>
-            <select
-              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900"
-              value={srcFolderId || ''}
-              onChange={(e) => handleSrcFolderChange(Number(e.target.value))}
+            <Select
+              value={srcFolderId}
+              options={favoriteFolders.map((folder) => ({
+                value: folder.id,
+                label: folder.title,
+                hint: `${formatNumber(folder.media_count)} 个视频`,
+              }))}
+              placeholder="请选择源收藏夹"
+              onChange={handleSrcFolderChange}
               disabled={moving}
-            >
-              <option value="">请选择源收藏夹</option>
-              {favoriteFolders.map((folder) => (
-                <option key={folder.id} value={folder.id}>
-                  {folder.title} ({formatNumber(folder.media_count)} 个视频)
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700">
               目标收藏夹
             </label>
-            <select
-              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900"
-              value={tarFolderId || ''}
-              onChange={(e) => handleTarFolderChange(Number(e.target.value))}
+            <Select
+              value={tarFolderId}
+              options={favoriteFolders
+                .filter(
+                  (folder) =>
+                    folder.id !== srcFolderId &&
+                    folder.media_count < MAX_VIDEOS_PER_FOLDER
+                )
+                .map((folder) => ({
+                  value: folder.id,
+                  label: folder.title,
+                  hint: `${formatNumber(folder.media_count)} 个视频`,
+                }))}
+              placeholder="请选择目标收藏夹"
+              emptyText="没有可用作目标的收藏夹（都已满或为源收藏夹）"
+              onChange={handleTarFolderChange}
               disabled={moving}
-            >
-              <option value="">请选择目标收藏夹</option>
-              {favoriteFolders
-                .filter((f) => f.id !== srcFolderId)
-                .map((folder) => (
-                  <option key={folder.id} value={folder.id}>
-                    {folder.title} ({formatNumber(folder.media_count)} 个视频)
-                  </option>
-                ))}
-            </select>
+            />
             {capacity && (
               <p className="mt-1 text-xs text-gray-500">
                 剩余容量：{capacity.remaining}/{capacity.max}
@@ -403,7 +445,7 @@ export function MovePanel() {
         </div>
 
         {srcFolderId && tarFolderId && videos.length > 0 && (
-          <div className="flex items-center justify-between rounded-xl border border-bili-pink/20 bg-bili-pink-50/50 p-3">
+          <div className="flex shrink-0 items-center justify-between rounded-xl border border-bili-pink/20 bg-bili-pink-50/50 p-3">
             <p className="text-sm text-gray-600">
               可自动移动 <span className="font-semibold text-gray-900">{getAutoSelectCount()}</span> 个视频到目标收藏夹
             </p>
@@ -426,10 +468,11 @@ export function MovePanel() {
         )}
 
         {srcFolderId && videos.length > 0 && (
-          <>
-            <div className="flex items-center justify-between">
+          <div className="flex min-h-0 flex-1 flex-col gap-2">
+            <div className="flex shrink-0 items-center justify-between">
               <p className="text-sm text-gray-600">
-                共 {formatNumber(videos.length)} 个视频，已选 {selectedVideos.size} 个
+                显示最近 {formatNumber(videos.length)} 个视频
+                {hasMore ? '（还有更多未加载）' : ''}，已选 {selectedVideos.size} 个
               </p>
               <div className="flex gap-2">
                 <Button
@@ -440,6 +483,7 @@ export function MovePanel() {
                   {selectedVideos.size === videos.length ? '取消全选' : '全选'}
                 </Button>
                 <Button
+                  variant="bili"
                   onClick={handleMove}
                   disabled={
                     selectedVideos.size === 0 || !tarFolderId || moving
@@ -457,14 +501,14 @@ export function MovePanel() {
               </div>
             </div>
 
-            <div className="max-h-96 space-y-2 overflow-y-auto">
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
               {videos.map((video) => (
                 <div
                   key={video.id}
-                  className={`flex items-start gap-3 rounded-md border p-3 ${
+                  className={`flex items-start gap-3 rounded-xl border p-3 transition-colors ${
                     selectedVideos.has(video.id)
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200'
+                      ? 'border-bili-pink/40 bg-bili-pink-50'
+                      : 'border-gray-200 hover:bg-gray-50/60'
                   }`}
                 >
                   <input
@@ -472,7 +516,7 @@ export function MovePanel() {
                     checked={selectedVideos.has(video.id)}
                     onChange={() => handleToggleVideo(video.id)}
                     disabled={moving}
-                    className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="mt-1 h-4 w-4 rounded border-gray-300 accent-bili-pink"
                   />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-gray-900">{video.title}</p>
@@ -484,15 +528,27 @@ export function MovePanel() {
                 </div>
               ))}
             </div>
-          </>
+          </div>
         )}
 
         {srcFolderId && videos.length === 0 && !loading && (
-          <div className="py-8 text-center text-gray-500">该收藏夹暂无视频</div>
+          <div className="flex flex-1 items-center justify-center rounded-2xl bg-gray-50/60 text-sm text-gray-500">
+            该收藏夹暂无视频
+          </div>
         )}
 
         {!srcFolderId && (
-          <div className="py-8 text-center text-gray-500">请先选择源收藏夹</div>
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-2xl bg-gray-50/60 px-6 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-sm">
+              <ArrowRightLeft className="h-6 w-6 text-gray-300" />
+            </div>
+            <p className="text-sm font-medium text-gray-600">
+              先选择源收藏夹
+            </p>
+            <p className="max-w-sm text-xs leading-relaxed text-gray-400">
+              选好后可以在下方勾选视频，或直接用「一键移动」按容量自动挑选
+            </p>
+          </div>
         )}
       </CardContent>
     </Card>

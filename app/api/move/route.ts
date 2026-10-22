@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BilibiliApi } from '@/lib/bilibili-api';
+import { apiErrorResponse } from '@/lib/api-error';
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,10 +41,6 @@ export async function POST(request: NextRequest) {
       data: response.data,
     });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json(
-      { success: false, error: errorMessage },
-      { status: 500 }
-    );
+    return apiErrorResponse(error, 'Internal server error');
   }
 }

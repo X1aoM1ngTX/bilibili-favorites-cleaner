@@ -35,7 +35,11 @@ export function formatNumber(num: number): string {
 export function parseCookie(cookieString: string): Record<string, string> {
   const cookies: Record<string, string> = {};
   cookieString.split(';').forEach(cookie => {
-    const [name, value] = cookie.trim().split('=');
+    const trimmed = cookie.trim();
+    const separatorIndex = trimmed.indexOf('=');
+    if (separatorIndex <= 0) return;
+    const name = trimmed.slice(0, separatorIndex);
+    const value = trimmed.slice(separatorIndex + 1);
     if (name && value) {
       cookies[name] = value;
     }
