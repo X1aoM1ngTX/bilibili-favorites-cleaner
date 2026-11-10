@@ -2,6 +2,8 @@
 
 B 站收藏夹管理工具：批量清理失效视频、跨收藏夹移动视频、拖拽排序、容量分析。
 
+<img src="docs/screenshots/clean.png" alt="清理失效视频：收藏夹网格与容量监控" width="100%">
+
 ## 功能
 
 - **扫码登录** — 调用 B 站官方二维码接口，Cookie 不经过任何第三方服务
@@ -10,6 +12,20 @@ B 站收藏夹管理工具：批量清理失效视频、跨收藏夹移动视频
 - **移动视频** — 收藏夹之间移动视频，自动校验目标容量；已满（1000）的收藏夹不会出现在目标列表
 - **收藏夹排序** — 拖拽调整顺序，默认收藏夹固定第一位
 - **数据概览** — 容量分布、占用排行、接近上限与已满的收藏夹统计
+
+## 界面预览
+
+| 登录配置 | 数据概览 |
+| :---: | :---: |
+| ![登录配置](docs/screenshots/login.png) | ![数据概览](docs/screenshots/overview.png) |
+
+| 移动视频 | 收藏夹排序 |
+| :---: | :---: |
+| ![移动视频](docs/screenshots/move.png) | ![收藏夹排序](docs/screenshots/sort.png) |
+
+<p align="center">
+  <img src="docs/screenshots/mobile.png" alt="移动端适配" width="320">
+</p>
 
 ## 技术栈
 
@@ -78,6 +94,7 @@ store/
 types/
   index.ts
 docs/
+  screenshots/          # README 界面截图
   API-Documentation.md  # B 站接口抓包记录
   项目需求分析.md  技术选型.md
 ```
